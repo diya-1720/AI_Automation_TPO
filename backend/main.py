@@ -90,9 +90,11 @@ init_default_user()
 app = FastAPI(title="SPC Documentation AI API")
 app.mount("/generated", StaticFiles(directory="generated"), name="generated")
 
+ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS if ALLOWED_ORIGINS else ["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -842,8 +844,9 @@ async def generate_document(
             print(f"PDF conversion notice: {e}")
             pdf_filename = None
 
-        docx_url = f"http://localhost:8000/generated/{docx_filename}"
-        pdf_url = f"http://localhost:8000/generated/{pdf_filename}" if pdf_filename and os.path.exists(pdf_path) else None
+        API_BASE_URL = os.getenv("API_BASE_URL", "").rstrip("/")
+        docx_url = f"{API_BASE_URL}/generated/{docx_filename}" if API_BASE_URL else f"/generated/{docx_filename}"
+        pdf_url = (f"{API_BASE_URL}/generated/{pdf_filename}" if API_BASE_URL else f"/generated/{pdf_filename}") if pdf_filename and os.path.exists(pdf_path) else None
 
         # Auto-Save Report Record for "Previous Reports" Section
         report_record = {
@@ -871,4 +874,5 @@ async def generate_document(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    PORT = int(os.getenv("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=PORT, reload=False)
