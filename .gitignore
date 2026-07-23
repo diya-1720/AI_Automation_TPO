@@ -1,0 +1,17 @@
+# Virtual Environment & Python cache
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# Environment files & Secrets
+backend/.env
+frontend/.env
+frontend/.env.local
+
+# Generated reports & Uploads
+backend/generated/
+backend/templates/master_*
+
+# Node & Build artifacts
+frontend/node_modules/
+frontend/dist/
