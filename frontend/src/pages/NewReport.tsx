@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, FileDown, Download, Upload, Sparkles, Check, X as XIcon, Minus, Image as ImageIcon, FileText, Images, Trash2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface Field {
   name: string;
@@ -51,12 +52,12 @@ export default function NewReport() {
 
   const fetchFieldsAndSettings = async () => {
     try {
-      const response = await fetch('http://localhost:8000/api/templates/fields');
+      const response = await fetch(`${API_BASE_URL}/api/templates/fields`);
       const data = await response.json();
       setFields(data.fields || []);
 
       // Load settings for auto-fill defaults
-      const settingsRes = await fetch('http://localhost:8000/api/settings');
+      const settingsRes = await fetch(`${API_BASE_URL}/api/settings`);
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         setValues(prev => ({
@@ -101,7 +102,7 @@ export default function NewReport() {
     if (ocrImage) formData.append('ocr_image', ocrImage);
 
     try {
-      const response = await fetch('http://localhost:8000/api/templates/auto-fill-image', {
+      const response = await fetch(`${API_BASE_URL}/api/templates/auto-fill-image`, {
         method: 'POST',
         body: formData,
       });
@@ -185,7 +186,7 @@ export default function NewReport() {
     });
 
     try {
-      const response = await fetch('http://localhost:8000/api/templates/generate', {
+      const response = await fetch(`${API_BASE_URL}/api/templates/generate`, {
         method: 'POST',
         body: formData,
       });

@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { User, Sun, Moon, Database, Download, Save, CheckCircle, AlertCircle, Building, Users, MapPin, Award } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface SettingsProps {
   theme: 'light' | 'dark';
@@ -28,7 +29,7 @@ export default function Settings({ theme, onThemeChange }: SettingsProps) {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('http://localhost:8000/api/settings');
+      const res = await fetch(`${API_BASE_URL}/api/settings`);
       if (res.ok) {
         const data = await res.json();
         if (data.account_name) setAccountName(data.account_name);
@@ -69,7 +70,7 @@ export default function Settings({ theme, onThemeChange }: SettingsProps) {
     };
 
     try {
-      const res = await fetch('http://localhost:8000/api/settings', {
+      const res = await fetch(`${API_BASE_URL}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -93,7 +94,7 @@ export default function Settings({ theme, onThemeChange }: SettingsProps) {
   };
 
   return (
-    <div className={`p-8 max-w-5xl mx-auto space-y-8 min-h-screen transition-colors duration-200 ${
+    <div className={`p-4 sm:p-6 md:p-8 max-w-5xl mx-auto space-y-8 min-h-screen overflow-x-hidden transition-colors duration-200 ${
       theme === 'dark' ? 'text-slate-100 bg-slate-900' : 'text-gray-900 bg-gray-50'
     }`}>
       

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Folder, Download, Search, Loader2, RefreshCw, FileText, Calendar, AlertCircle } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface ReportRecord {
   id: string;
@@ -26,7 +27,7 @@ export default function PreviousReports() {
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:8000/api/reports');
+      const response = await fetch(`${API_BASE_URL}/api/reports`);
       if (!response.ok) {
         throw new Error('Failed to fetch previous reports');
       }
@@ -39,13 +40,19 @@ export default function PreviousReports() {
     }
   };
 
+  const getFullUrl = (urlStr: string | null) => {
+    if (!urlStr) return '';
+    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) return urlStr;
+    return `${API_BASE_URL}${urlStr.startsWith('/') ? '' : '/'}${urlStr}`;
+  };
+
   const filteredReports = reports.filter(r =>
     (r.activity_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (r.docx_filename || '').toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto space-y-6 overflow-x-hidden">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-5">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -130,7 +137,7 @@ export default function PreviousReports() {
                       <div className="flex items-center justify-end gap-2">
                         {report.docx_url && (
                           <a
-                            href={report.docx_url}
+                            href={getFullUrl(report.docx_url)}
                             download
                             className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-lg text-xs font-medium transition"
                           >
@@ -139,7 +146,7 @@ export default function PreviousReports() {
                         )}
                         {report.pdf_url && (
                           <a
-                            href={report.pdf_url}
+                            href={getFullUrl(report.pdf_url)}
                             download
                             className="flex items-center gap-1 px-3 py-1.5 bg-red-50 text-red-700 hover:bg-red-100 rounded-lg text-xs font-medium transition"
                           >

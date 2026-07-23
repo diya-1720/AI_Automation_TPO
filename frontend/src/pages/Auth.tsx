@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { Lock, Mail, UserCheck, Shield, Users, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { API_BASE_URL } from '../config';
 
 interface AuthProps {
   onLoginSuccess: (user: any, token: string) => void;
@@ -26,7 +27,7 @@ export default function Auth({ onLoginSuccess }: AuthProps) {
       : { email, password, account_name: accountName };
 
     try {
-      const res = await fetch(`http://localhost:8000${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
