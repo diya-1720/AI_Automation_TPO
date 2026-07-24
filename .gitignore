@@ -10,6 +10,7 @@ frontend/.env.local
 
 # Generated reports & Uploads
 generated/
+templates/
 backend/generated/
 backend/templates/master_*
 

@@ -8,7 +8,7 @@ import hashlib
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Header
+from fastapi import FastAPI, APIRouter, UploadFile, File, Form, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -103,7 +103,10 @@ def save_settings(settings: dict):
 init_default_user()
 
 app = FastAPI(title="SPC Documentation AI API")
+router = APIRouter()
+
 app.mount("/generated", StaticFiles(directory=GENERATED_DIR), name="generated")
+app.mount("/api/generated", StaticFiles(directory=GENERATED_DIR), name="api_generated")
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
 
@@ -115,7 +118,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini
+# Configure Gemini dynamically
 api_key = os.getenv("GEMINI_API_KEY")
 if api_key:
     genai.configure(api_key=api_key)
@@ -176,7 +179,7 @@ def save_report_record(record: dict):
         print(f"Error saving report metadata: {e}")
 
 # Auth & Settings Endpoints
-@app.post("/api/auth/signup")
+@router.post("/auth/signup")
 async def signup(req: SignupRequest):
     users = load_users()
     for u in users:
@@ -204,7 +207,7 @@ async def signup(req: SignupRequest):
         }
     }
 
-@app.post("/api/auth/login")
+@router.post("/auth/login")
 async def login(req: LoginRequest):
     users = load_users()
     pwd_hash = hash_password(req.password)
@@ -221,7 +224,7 @@ async def login(req: LoginRequest):
             }
     raise HTTPException(status_code=401, detail="Invalid email or password.")
 
-@app.get("/api/auth/me")
+@router.get("/auth/me")
 async def get_current_user(authorization: Optional[str] = Header(None)):
     users = load_users()
     if not authorization:
@@ -237,11 +240,11 @@ async def get_current_user(authorization: Optional[str] = Header(None)):
     
     raise HTTPException(status_code=401, detail="Invalid token")
 
-@app.get("/api/settings")
+@router.get("/settings")
 async def get_settings_endpoint():
     return load_settings()
 
-@app.post("/api/settings")
+@router.post("/settings")
 async def update_settings_endpoint(req: SettingsModel):
     current = load_settings()
     updated = req.model_dump(exclude_unset=True)
@@ -249,7 +252,7 @@ async def update_settings_endpoint(req: SettingsModel):
     save_settings(current)
     return {"message": "Settings saved successfully", "settings": current}
 
-@app.get("/api/reports")
+@router.get("/reports")
 async def get_reports_endpoint():
     if os.path.exists(REPORTS_DB_PATH):
         try:
@@ -313,7 +316,7 @@ def read_root():
     return {"message": "Welcome to the SPC Documentation AI Platform API"}
 
 # Get previous saved reports
-@app.get("/api/reports")
+@router.get("/reports")
 async def get_previous_reports():
     if not os.path.exists(REPORTS_DB_PATH):
         return {"reports": []}
@@ -324,7 +327,7 @@ async def get_previous_reports():
     except Exception as e:
         return {"reports": []}
 
-@app.post("/api/templates/analyze-evidence")
+@router.post("/templates/analyze-evidence")
 async def analyze_template_and_evidence(
     master_template: Optional[UploadFile] = File(None),
     evidence_files: List[UploadFile] = File([])
@@ -338,7 +341,7 @@ async def analyze_template_and_evidence(
         contents = await master_template.read()
         template_filename = filename
         
-        save_path = os.path.join("templates", filename)
+        save_path = os.path.join(TEMPLATES_DIR, filename)
         with open(save_path, "wb") as f:
             f.write(contents)
 
@@ -461,7 +464,7 @@ Extracted Evidence Text:
     }
 
 # Endpoint for Custom Template Upload & Extraction (Supports DOCX & PDF)
-@app.post("/api/templates/analyze", response_model=AnalyzeTemplateResponse)
+@router.post("/templates/analyze", response_model=AnalyzeTemplateResponse)
 async def analyze_template(file: UploadFile = File(...)):
     filename = file.filename or ""
     ext = os.path.splitext(filename)[1].lower()
@@ -473,7 +476,8 @@ async def analyze_template(file: UploadFile = File(...)):
     document_text = ""
 
     if ext == ".docx":
-        with open("templates/Template.docx", "wb") as f:
+        save_path = os.path.join(TEMPLATES_DIR, "Template.docx")
+        with open(save_path, "wb") as f:
             f.write(contents)
         document_text = extract_text_from_docx_bytes(contents)
     elif ext == ".pdf":
@@ -503,7 +507,7 @@ Document Text:
         ])
 
 # Upgraded Auto-Fill supporting Text Notes & Handwritten/Printed Image OCR
-@app.post("/api/templates/auto-fill-image")
+@router.post("/templates/auto-fill-image")
 async def auto_fill_image(
     notes: Optional[str] = Form(None),
     ocr_image: Optional[UploadFile] = File(None)
@@ -586,13 +590,14 @@ Notes & Context Input:
             "feedback_summary": "Overall feedback received from students was highly encouraging with 95%+ positive rating."
         }
 
-@app.post("/api/templates/auto-fill")
+@router.post("/templates/auto-fill")
 async def auto_fill(request: AutoFillRequest):
     return await auto_fill_image(notes=request.notes, ocr_image=None)
 
-@app.post("/api/templates/save")
+@router.post("/templates/save")
 async def save_template(request: SaveTemplateRequest):
-    with open("templates/fields_config.json", "w") as f:
+    save_path = os.path.join(TEMPLATES_DIR, "fields_config.json")
+    with open(save_path, "w") as f:
         json.dump([field.model_dump() for field in request.fields], f)
     return {"message": "Template saved successfully"}
 
@@ -616,7 +621,7 @@ DEFAULT_ACADEMIC_FIELDS = [
     {"name": "feedback_summary", "label": "Feedback Analysis Summary", "type": "textarea", "originalText": "Feedback Summary"}
 ]
 
-@app.get("/api/templates/fields")
+@router.get("/templates/fields")
 async def get_template_fields():
     try:
         config_path = os.path.join(TEMPLATES_DIR, "fields_config.json")
@@ -632,7 +637,7 @@ async def get_template_fields():
         return {"fields": DEFAULT_ACADEMIC_FIELDS}
 
 # Report Generation Endpoint with Notice Upload, Event Photos Grid Layout & Auto-Save
-@app.post("/api/templates/generate")
+@router.post("/templates/generate")
 async def generate_document(
     values: Optional[str] = Form(None),
     notice_file: Optional[UploadFile] = File(None),
@@ -892,6 +897,10 @@ async def generate_document(
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error generating document: {e}")
+
+# Register router for both root and /api paths
+app.include_router(router)
+app.include_router(router, prefix="/api")
 
 if __name__ == "__main__":
     import uvicorn
