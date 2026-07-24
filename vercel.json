@@ -1,29 +1,33 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/*.py": {
-      "memory": 1024,
-      "maxDuration": 15,
-      "excludeFiles": "{frontend/**,backend/venv/**,backend/generated/**,backend/templates/**,generated/**,templates/**,.git/**}"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "frontend/dist"
+      }
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/api/(.*)",
-      "destination": "/api"
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
     },
     {
-      "source": "/api",
-      "destination": "/api"
+      "src": "/generated/(.*)",
+      "dest": "api/index.py"
     },
     {
-      "source": "/generated/(.*)",
-      "destination": "/api"
+      "handle": "filesystem"
     },
     {
-      "source": "/((?!api|generated).*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
