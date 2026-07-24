@@ -1,15 +1,15 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
+      "source": "/api/:path*",
       "destination": "/api/index.py"
     },
     {
-      "source": "/generated/(.*)",
+      "source": "/generated/:path*",
       "destination": "/api/index.py"
     },
     {
-      "source": "/((?!api/|generated/).*)",
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]
