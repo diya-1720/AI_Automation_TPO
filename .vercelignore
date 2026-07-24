@@ -1,0 +1,23 @@
+# Python Virtual Environments & Cache
+backend/venv/
+backend/__pycache__/
+*.pyc
+
+# Node Modules & Frontend Source (Not needed in Python Serverless Function)
+frontend/node_modules/
+frontend/src/
+frontend/public/
+frontend/dist/
+
+# Generated Documents & User Uploaded Templates
+backend/generated/
+backend/templates/
+generated/
+templates/
+
+# Git & Local Environment Files
+.git/
+.env
+.env.local
+backend/.env
+frontend/.env
