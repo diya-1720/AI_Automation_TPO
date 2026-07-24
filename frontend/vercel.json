@@ -1,13 +1,4 @@
 {
-  "buildCommand": "cd frontend && npm install && npm run build",
-  "outputDirectory": "frontend/dist",
-  "functions": {
-    "api/*.py": {
-      "memory": 1024,
-      "maxDuration": 15,
-      "excludeFiles": "{frontend/**,backend/venv/**,backend/generated/**,backend/templates/**,generated/**,templates/**,.git/**}"
-    }
-  },
   "rewrites": [
     {
       "source": "/api/(.*)",
