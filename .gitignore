@@ -9,6 +9,7 @@ frontend/.env
 frontend/.env.local
 
 # Generated reports & Uploads
+generated/
 backend/generated/
 backend/templates/master_*
 

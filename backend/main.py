@@ -22,13 +22,28 @@ from docx2pdf import convert
 
 load_dotenv()
 
-os.makedirs("generated", exist_ok=True)
-os.makedirs("generated/uploads", exist_ok=True)
-os.makedirs("templates", exist_ok=True)
+def get_storage_dir(sub_dir: str) -> str:
+    target = os.path.join(".", sub_dir)
+    try:
+        os.makedirs(target, exist_ok=True)
+        test_file = os.path.join(target, ".perm_test")
+        with open(test_file, "w") as f:
+            f.write("1")
+        os.remove(test_file)
+        return target
+    except Exception:
+        fallback = os.path.join("/tmp", sub_dir)
+        os.makedirs(fallback, exist_ok=True)
+        return fallback
 
-REPORTS_DB_PATH = "generated/reports_db.json"
-USERS_DB_PATH = "generated/users_db.json"
-SETTINGS_DB_PATH = "generated/settings_db.json"
+GENERATED_DIR = get_storage_dir("generated")
+UPLOADS_DIR = get_storage_dir("generated/uploads")
+TEMPLATES_DIR = get_storage_dir("templates")
+
+REPORTS_DB_PATH = os.path.join(GENERATED_DIR, "reports_db.json")
+USERS_DB_PATH = os.path.join(GENERATED_DIR, "users_db.json")
+SETTINGS_DB_PATH = os.path.join(GENERATED_DIR, "settings_db.json")
+
 
 # Helper for Password Hashing
 def hash_password(password: str, salt: str = "spc_shared_salt") -> str:
@@ -88,7 +103,7 @@ def save_settings(settings: dict):
 init_default_user()
 
 app = FastAPI(title="SPC Documentation AI API")
-app.mount("/generated", StaticFiles(directory="generated"), name="generated")
+app.mount("/generated", StaticFiles(directory=GENERATED_DIR), name="generated")
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
 
@@ -352,14 +367,17 @@ async def analyze_template_and_evidence(
             combined_evidence_text += f"\n--- Evidence Image OCR ({ev_file.filename}) ---\n{ocr_res}\n"
             
             unique_name = f"ev_{int(time.time())}_{ev_file.filename}"
-            photo_save_path = os.path.join("generated", "uploads", unique_name)
+            photo_save_path = os.path.join(UPLOADS_DIR, unique_name)
             with open(photo_save_path, "wb") as f:
                 f.write(contents)
+            
+            api_base = os.getenv("API_BASE_URL", "").rstrip("/")
+            photo_url = f"{api_base}/generated/uploads/{unique_name}" if api_base else f"/generated/uploads/{unique_name}"
             
             processed_photos.append({
                 "filename": ev_file.filename,
                 "saved_path": photo_save_path,
-                "url": f"http://localhost:8000/generated/uploads/{unique_name}"
+                "url": photo_url
             })
 
     prompt = f"""
@@ -601,8 +619,11 @@ DEFAULT_ACADEMIC_FIELDS = [
 @app.get("/api/templates/fields")
 async def get_template_fields():
     try:
-        if os.path.exists("templates/fields_config.json"):
-            with open("templates/fields_config.json", "r") as f:
+        config_path = os.path.join(TEMPLATES_DIR, "fields_config.json")
+        if not os.path.exists(config_path):
+            config_path = os.path.join("templates", "fields_config.json")
+        if os.path.exists(config_path):
+            with open(config_path, "r") as f:
                 fields = json.load(f)
                 if fields:
                     return {"fields": fields}
@@ -649,7 +670,7 @@ async def generate_document(
     if notice_file and notice_file.filename:
         n_bytes = await notice_file.read()
         unique_n_name = f"notice_{int(time.time())}_{notice_file.filename}"
-        notice_saved_path = os.path.join("generated", "uploads", unique_n_name)
+        notice_saved_path = os.path.join(UPLOADS_DIR, unique_n_name)
         with open(notice_saved_path, "wb") as f:
             f.write(n_bytes)
 
@@ -660,7 +681,7 @@ async def generate_document(
             if ep and ep.filename:
                 ep_bytes = await ep.read()
                 unique_ep_name = f"event_photo_{int(time.time())}_{ep.filename}"
-                ep_save_path = os.path.join("generated", "uploads", unique_ep_name)
+                ep_save_path = os.path.join(UPLOADS_DIR, unique_ep_name)
                 with open(ep_save_path, "wb") as f:
                     f.write(ep_bytes)
                 saved_event_photo_paths.append(ep_save_path)
@@ -831,8 +852,8 @@ async def generate_document(
         docx_filename = f"{base_filename}.docx"
         pdf_filename = f"{base_filename}.pdf"
 
-        docx_path = os.path.join("generated", docx_filename)
-        pdf_path = os.path.join("generated", pdf_filename)
+        docx_path = os.path.join(GENERATED_DIR, docx_filename)
+        pdf_path = os.path.join(GENERATED_DIR, pdf_filename)
 
         doc.save(docx_path)
 

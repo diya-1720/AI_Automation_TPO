@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { API_BASE_URL } from '../config';
 import {
   Upload, FileText, Loader2, CheckCircle2, AlertTriangle,
   Image as ImageIcon, Download, Sparkles, Eye,
@@ -121,7 +122,7 @@ export default function Templates() {
     });
 
     try {
-      const response = await fetch('http://localhost:8000/api/templates/analyze-evidence', {
+      const response = await fetch(`${API_BASE_URL}/api/templates/analyze-evidence`, {
         method: 'POST',
         body: formData,
       });
@@ -188,7 +189,7 @@ export default function Templates() {
     setGeneratedReport(null);
 
     try {
-      const response = await fetch('http://localhost:8000/api/templates/generate', {
+      const response = await fetch(`${API_BASE_URL}/api/templates/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
