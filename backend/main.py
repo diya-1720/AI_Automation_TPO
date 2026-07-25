@@ -177,6 +177,11 @@ def save_report_record(record: dict):
     except Exception as e:
         print(f"Error saving report metadata: {e}")
 
+# Root & Health Check Endpoint
+@router.get("/")
+async def root():
+    return {"status": "ok", "message": "SPC Documentation AI API is running"}
+
 # Auth & Settings Endpoints
 @router.post("/auth/signup")
 async def signup(req: SignupRequest):
