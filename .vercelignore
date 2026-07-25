@@ -1,6 +1,7 @@
 # Python Virtual Environments & Cache
 backend/venv/
 backend/__pycache__/
+__pycache__/
 *.pyc
 
 # Node Modules & Build Output
@@ -10,8 +11,10 @@ frontend/dist/
 # Generated Documents & User Uploaded Templates
 backend/generated/
 backend/templates/
+backend/uploads/
 generated/
 templates/
+uploads/
 
 # Git & Local Environment Files
 .git/

@@ -18,7 +18,6 @@ from docx.shared import Inches, Pt
 import google.generativeai as genai
 from pypdf import PdfReader
 from PIL import Image
-from docx2pdf import convert
 
 load_dotenv()
 
