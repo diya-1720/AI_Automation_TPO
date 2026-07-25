@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { FilePlus, Folder, FileText, Settings as SettingsIcon, LogOut, Users, Shield, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Folder, FileText, Settings as SettingsIcon, LogOut, Users, Shield, Menu, X } from 'lucide-react';
+import Dashboard from './pages/Dashboard';
 import Templates from './pages/Templates';
 import NewReport from './pages/NewReport';
 import PreviousReports from './pages/PreviousReports';
@@ -43,6 +44,18 @@ function SidebarNav({
         </div>
 
         <nav className="px-3 space-y-1.5 mt-6">
+          <Link
+            to="/dashboard"
+            onClick={onNavClick}
+            className={`flex items-center px-4 py-3 rounded-xl transition font-medium text-sm ${
+              isActive('/dashboard') || isActive('/')
+                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
+                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <LayoutDashboard className="w-5 h-5 mr-3 text-indigo-400" /> Dashboard
+          </Link>
+
           <Link
             to="/new-report"
             onClick={onNavClick}
@@ -180,12 +193,13 @@ function AppContent({
       {/* Main Content View */}
       <main className="flex-1 overflow-x-hidden overflow-y-auto">
         <Routes>
-          <Route path="/" element={<Navigate to="/new-report" replace />} />
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/new-report" element={<NewReport />} />
           <Route path="/reports" element={<PreviousReports />} />
           <Route path="/templates" element={<Templates />} />
           <Route path="/settings" element={<Settings theme={theme} onThemeChange={onThemeChange} />} />
-          <Route path="*" element={<Navigate to="/new-report" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
       </main>
     </div>

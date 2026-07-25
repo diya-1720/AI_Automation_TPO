@@ -266,6 +266,45 @@ async def get_reports_endpoint():
             return []
     return []
 
+@router.delete("/reports/{report_id}")
+async def delete_report_endpoint(report_id: str):
+    if not os.path.exists(REPORTS_DB_PATH):
+        raise HTTPException(status_code=404, detail="Report database not found")
+    
+    try:
+        with open(REPORTS_DB_PATH, "r") as f:
+            records = json.load(f)
+        
+        target = None
+        remaining = []
+        for r in records:
+            if r.get("id") == report_id or r.get("docxFilename") == report_id or r.get("pdfFilename") == report_id:
+                target = r
+            else:
+                remaining.append(r)
+        
+        if not target:
+            raise HTTPException(status_code=404, detail="Report not found")
+        
+        with open(REPORTS_DB_PATH, "w") as f:
+            json.dump(remaining, f, indent=2)
+            
+        for key in ["docxFilename", "pdfFilename"]:
+            fname = target.get(key)
+            if fname:
+                fp = os.path.join(GENERATED_DIR, fname)
+                if os.path.exists(fp):
+                    try:
+                        os.remove(fp)
+                    except Exception:
+                        pass
+                        
+        return {"message": "Report deleted successfully", "id": report_id}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete report: {e}")
+
 # Helper: Extract text from DOCX bytes
 def extract_text_from_docx_bytes(contents: bytes) -> str:
     try:
