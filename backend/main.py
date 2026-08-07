@@ -18,6 +18,11 @@ from docx.shared import Inches, Pt
 import google.generativeai as genai
 from pypdf import PdfReader
 from PIL import Image
+try:
+    from docx2pdf import convert
+    DOCX2PDF_AVAILABLE = True
+except Exception:
+    DOCX2PDF_AVAILABLE = False
 
 load_dotenv()
 
@@ -906,9 +911,12 @@ async def generate_document(
         doc.save(docx_path)
 
         try:
-            abs_docx = os.path.abspath(docx_path)
-            abs_pdf = os.path.abspath(pdf_path)
-            convert(abs_docx, abs_pdf)
+            if DOCX2PDF_AVAILABLE:
+                abs_docx = os.path.abspath(docx_path)
+                abs_pdf = os.path.abspath(pdf_path)
+                convert(abs_docx, abs_pdf)
+            else:
+                pdf_filename = None
         except Exception as e:
             print(f"PDF conversion notice: {e}")
             pdf_filename = None
