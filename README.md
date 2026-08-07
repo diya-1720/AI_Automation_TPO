@@ -1,10 +1,16 @@
 # SPC Assistant - AI Documentation Platform
 
-![Project Status](https://img.shields.io/badge/Status-Production_Ready-emerald) ![Version](https://img.shields.io/badge/Version-v1.0.0-blue) ![Mobile-Responsive](https://img.shields.io/badge/Mobile-Fully_Responsive-indigo) ![License](https://img.shields.io/badge/License-MIT-green)
+[![Live Demo](https://img.shields.io/badge/Live_Demo-ai--automation--tpo.vercel.app-000000?style=flat&logo=vercel&logoColor=white)](https://ai-automation-tpo.vercel.app/) ![Project Status](https://img.shields.io/badge/Status-Production_Ready-emerald) ![Version](https://img.shields.io/badge/Version-v1.0.0-blue) ![Mobile-Responsive](https://img.shields.io/badge/Mobile-Fully_Responsive-indigo) ![License](https://img.shields.io/badge/License-MIT-green)
 
 An intelligent, AI-powered document generation and report automation platform designed for college **Training & Placement Cells (TPO)**, academic committees, and institutional departments.
 
 SPC Assistant automates the end-to-end event documentation workflow: processing raw event evidence (handwritten notes, scanned papers, images, PDFs, DOCX), performing multi-modal OCR text extraction via Gemini Vision, scoring field confidence, embedding event notice flyers, arranging multi-photo event grids into Word tables, and producing standardized, publication-ready DOCX and PDF reports.
+
+---
+
+## 🌐 Live Demo
+
+🔗 **Production Web App**: [https://ai-automation-tpo.vercel.app/](https://ai-automation-tpo.vercel.app/)
 
 ---
 
@@ -174,7 +180,7 @@ uvicorn backend.main:app --host 0.0.0.0 --port $PORT
    ```
 4. Configure Environment Variables in Cloud Dashboard:
    - `GEMINI_API_KEY`: Your Google Gemini API Key.
-   - `ALLOWED_ORIGINS`: Your frontend domain URL (e.g. `https://spc-assistant.vercel.app`).
+   - `ALLOWED_ORIGINS`: Your frontend domain URL (e.g. `https://ai-automation-tpo.vercel.app`).
    - `API_BASE_URL`: Your backend cloud domain URL (e.g. `https://spc-backend.onrender.com`).
 
 ### Deploying Frontend (Vercel / Netlify)
