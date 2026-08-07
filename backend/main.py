@@ -617,7 +617,8 @@ Notes & Context Input:
         return data
     except Exception as e:
         print(f"Auto-fill generative fallback: {e}")
-        topic = notes.strip() if notes else "Training & Placement Session"
+        raw_topic = notes.strip().split('\n')[0][:40] if notes else "Training & Placement Session"
+        topic = re.sub(r'[^\w\s-]', '', raw_topic).strip() or "Training & Placement Session"
         return {
             "activity_name": f"Interactive Session on {topic}",
             "date_time": datetime.now().strftime("%Y-%m-%d"),
@@ -899,12 +900,14 @@ async def generate_document(
         # Strict Naming Format: [Name_of_the_Activity]_documentation.pdf / .docx
         raw_activity_name = parsed_values.get("activity_name", "").strip() or "Activity"
         clean_activity_name = re.sub(r'[^a-zA-Z0-9_\-]', '', raw_activity_name.replace(' ', '_'))
+        clean_activity_name = clean_activity_name[:40].rstrip('_')
         if not clean_activity_name: clean_activity_name = "Activity"
 
         base_filename = f"{clean_activity_name}_documentation"
         docx_filename = f"{base_filename}.docx"
         pdf_filename = f"{base_filename}.pdf"
 
+        os.makedirs(GENERATED_DIR, exist_ok=True)
         docx_path = os.path.join(GENERATED_DIR, docx_filename)
         pdf_path = os.path.join(GENERATED_DIR, pdf_filename)
 
