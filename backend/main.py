@@ -113,11 +113,12 @@ app.mount("/generated", StaticFiles(directory=GENERATED_DIR), name="generated")
 app.mount("/api/generated", StaticFiles(directory=GENERATED_DIR), name="api_generated")
 
 ALLOWED_ORIGINS = [o.strip() for o in os.getenv("ALLOWED_ORIGINS", "*").split(",") if o.strip()]
+is_wildcard = "*" in ALLOWED_ORIGINS or not ALLOWED_ORIGINS
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS if ALLOWED_ORIGINS else ["*"],
-    allow_credentials=True,
+    allow_origins=["*"] if is_wildcard else ALLOWED_ORIGINS,
+    allow_credentials=False if is_wildcard else True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
