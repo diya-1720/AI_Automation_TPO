@@ -1,0 +1,57 @@
+{
+  "field_mappings": [
+    { "field": "activity_name", "type": "table_cell", "table_index": 0, "row": 0, "col": 1 },
+    { "field": "date_time", "type": "table_cell", "table_index": 0, "row": 1, "col": 1 },
+    { "field": "department", "type": "table_cell", "table_index": 0, "row": 1, "col": 3 },
+    { "field": "venue", "type": "table_cell", "table_index": 0, "row": 2, "col": 1 },
+    { "field": "participants", "type": "table_cell", "table_index": 0, "row": 2, "col": 3 },
+    { "field": "nature_of_activity", "type": "table_cell", "table_index": 0, "row": 3, "col": 1 },
+    { "field": "mode_of_activity", "type": "table_cell", "table_index": 0, "row": 3, "col": 3 },
+    { "field": "activity_incharge", "type": "table_cell", "table_index": 0, "row": 4, "col": 1 },
+    { "field": "activity_coordinator", "type": "table_cell", "table_index": 0, "row": 4, "col": 3 },
+    { "field": "resource_person", "type": "table_cell", "table_index": 0, "row": 5, "col": 1 },
+
+    { "field": "objectives", "type": "table_cell", "table_index": 1, "row": 0, "col": 1 },
+    { "field": "target_audience", "type": "table_cell", "table_index": 1, "row": 1, "col": 1 },
+    { "field": "event_schedule", "type": "table_cell", "table_index": 1, "row": 2, "col": 1 },
+    { "field": "methodology", "type": "table_cell", "table_index": 1, "row": 3, "col": 1 },
+    { "field": "students_selected", "type": "table_cell", "table_index": 1, "row": 4, "col": 1 },
+    { "field": "outcomes", "type": "table_cell", "table_index": 1, "row": 5, "col": 1 },
+
+    { "field": "strengths", "type": "table_cell", "table_index": 2, "row": 1, "col": 0 },
+    { "field": "weaknesses", "type": "table_cell", "table_index": 2, "row": 1, "col": 1 },
+    { "field": "opportunities", "type": "table_cell", "table_index": 2, "row": 1, "col": 2 },
+    { "field": "threats", "type": "table_cell", "table_index": 2, "row": 1, "col": 3 },
+
+    { "field": "notice_brochure_tick", "type": "table_cell", "table_index": 3, "row": 0, "col": 0 },
+    { "field": "feedback_analysis_tick", "type": "table_cell", "table_index": 3, "row": 0, "col": 2 },
+    { "field": "attendance_list_tick", "type": "table_cell", "table_index": 3, "row": 1, "col": 0 },
+    { "field": "news_letter_data_tick", "type": "table_cell", "table_index": 3, "row": 1, "col": 2 },
+    { "field": "photos_tick", "type": "table_cell", "table_index": 3, "row": 2, "col": 0 },
+    { "field": "media_news_details_tick", "type": "table_cell", "table_index": 3, "row": 2, "col": 2 },
+    { "field": "certificate_tick", "type": "table_cell", "table_index": 3, "row": 3, "col": 0 },
+    { "field": "co_po_mapping_tick", "type": "table_cell", "table_index": 3, "row": 3, "col": 2 },
+    { "field": "feedback_form_tick", "type": "table_cell", "table_index": 3, "row": 4, "col": 0 },
+    { "field": "any_other_tick", "type": "table_cell", "table_index": 3, "row": 4, "col": 2 }
+  ],
+  "image_placements": {
+    "notice_brochure": {
+      "placeholders": ["[NOTICE_PHOTO]", "[NOTICE]"],
+      "fallback_heading": "Notice & Brochure",
+      "max_width_inches": 5.2
+    },
+    "feedback_graph": {
+      "placeholders": ["[FEEDBACK_GRAPH]", "[FEEDBACK_ANALYSIS]"],
+      "fallback_heading": "Feedback Analysis",
+      "max_width_inches": 5.0,
+      "append_interpretation": true
+    },
+    "event_photos": {
+      "placeholders": ["[EVENT_PHOTOS]"],
+      "fallback_heading": "Event Photographs",
+      "layout": "grid_2col",
+      "max_width_inches": 2.8
+    }
+  },
+  "placeholder_formats": ["[{key}]", "{{{key}}}"]
+}

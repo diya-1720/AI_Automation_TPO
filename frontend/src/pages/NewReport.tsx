@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, FileDown, Download, Upload, Sparkles, Check, X as XIcon, Minus, Image as ImageIcon, FileText, Images, Trash2 } from 'lucide-react';
+import { Loader2, FileDown, Download, Upload, Sparkles, Check, X as XIcon, Minus, FileText, Images, Trash2, BarChart2, FileCheck } from 'lucide-react';
 import { API_BASE_URL } from '../config';
 
 interface Field {
@@ -35,12 +35,18 @@ const DEFAULT_FIELDS: Field[] = [
   { name: "mode_of_activity", label: "Mode of Activity", type: "text", originalText: "" },
   { name: "participants", label: "Target Audience / Number of Participants", type: "text", originalText: "" },
   { name: "objectives", label: "Objectives of the Activity", type: "textarea", originalText: "" },
+  { name: "target_audience", label: "Target Audience", type: "text", originalText: "" },
+  { name: "event_schedule", label: "Event Schedule / Timeline", type: "textarea", originalText: "" },
   { name: "methodology", label: "Methodology & Execution Process", type: "textarea", originalText: "" },
+  { name: "students_selected", label: "Students Selected / Placed", type: "textarea", originalText: "" },
   { name: "outcomes", label: "Outcomes & Key Takeaways", type: "textarea", originalText: "" },
   { name: "activity_summary", label: "Brief Event Description / Summary", type: "textarea", originalText: "" },
-  { name: "strengths", label: "Strengths & Highlights", type: "textarea", originalText: "" },
-  { name: "weaknesses", label: "Weaknesses & Scope for Improvement", type: "textarea", originalText: "" },
-  { name: "feedback_summary", label: "Feedback Analysis Summary", type: "textarea", originalText: "" }
+  { name: "strengths", label: "Strengths (SWOT)", type: "textarea", originalText: "" },
+  { name: "weaknesses", label: "Weaknesses (SWOT)", type: "textarea", originalText: "" },
+  { name: "opportunities", label: "Opportunities (SWOT)", type: "textarea", originalText: "" },
+  { name: "threats", label: "Threats (SWOT)", type: "textarea", originalText: "" },
+  { name: "feedback_summary", label: "Feedback Summary", type: "textarea", originalText: "" },
+  { name: "feedback_interpretation", label: "Feedback Graph AI Interpretation", type: "textarea", originalText: "" }
 ];
 
 export default function NewReport() {
@@ -51,20 +57,27 @@ export default function NewReport() {
   const [error, setError] = useState<string | null>(null);
   const [generatedFiles, setGeneratedFiles] = useState<{ docxUrl: string, pdfUrl: string | null, docxFilename?: string, pdfFilename?: string | null } | null>(null);
   
-  // Notes & Image OCR Auto-Fill State
+  // 1. Source Material & Notes Upload State
   const [notes, setNotes] = useState('');
-  const [ocrImage, setOcrImage] = useState<File | null>(null);
-  const [isAutofilling, setIsAutofilling] = useState(false);
-  const ocrInputRef = useRef<HTMLInputElement>(null);
+  const [sourceFiles, setSourceFiles] = useState<File[]>([]);
+  const sourceFilesInputRef = useRef<HTMLInputElement>(null);
 
-  // Dedicated Notice & Brochure Upload State
+  // 2. Official Documents (Notice / Brochure / Circular) Upload State
   const [noticeFile, setNoticeFile] = useState<File | null>(null);
   const [noticePreviewUrl, setNoticePreviewUrl] = useState<string | null>(null);
   const noticeInputRef = useRef<HTMLInputElement>(null);
 
-  // Event Photos Section (Multiple Uploads & Grid Layout)
+  // 3. Event Photos Section (Multiple Uploads & Grid Layout)
   const [eventPhotos, setEventPhotos] = useState<File[]>([]);
   const eventPhotosInputRef = useRef<HTMLInputElement>(null);
+
+  // 4. Feedback Analysis Section Upload State
+  const [feedbackGraph, setFeedbackGraph] = useState<File | null>(null);
+  const [feedbackGraphPreviewUrl, setFeedbackGraphPreviewUrl] = useState<string | null>(null);
+  const [feedbackNotes, setFeedbackNotes] = useState('');
+  const feedbackGraphInputRef = useRef<HTMLInputElement>(null);
+
+  const [isAutofilling, setIsAutofilling] = useState(false);
 
   useEffect(() => {
     fetchFieldsAndSettings();
@@ -125,18 +138,26 @@ export default function NewReport() {
     }));
   };
 
-  // Image & Notes OCR Auto-Fill
-  const handleAutoFillWithImage = async () => {
-    if (!notes.trim() && !ocrImage) {
-      setError('Please enter text notes or upload an image of handwritten/printed notes.');
+  // Unified Multi-Modal AI Extraction
+  const handleAutoFillAllEvidence = async () => {
+    const hasAnyEvidence = notes.trim() || sourceFiles.length > 0 || noticeFile || eventPhotos.length > 0 || feedbackGraph || feedbackNotes.trim();
+    
+    if (!hasAnyEvidence) {
+      setError('Please provide notes, documents, notice image, or photos before running AI extraction.');
       return;
     }
+    
     setIsAutofilling(true);
     setError(null);
 
     const formData = new FormData();
     if (notes.trim()) formData.append('notes', notes);
-    if (ocrImage) formData.append('ocr_image', ocrImage);
+    if (feedbackNotes.trim()) formData.append('feedback_notes', feedbackNotes);
+
+    sourceFiles.forEach(f => formData.append('source_files', f));
+    if (noticeFile) formData.append('document_images', noticeFile);
+    eventPhotos.forEach(p => formData.append('event_photos', p));
+    if (feedbackGraph) formData.append('feedback_graph', feedbackGraph);
 
     try {
       const response = await fetch(`${API_BASE_URL}/api/templates/auto-fill-image`, {
@@ -146,7 +167,7 @@ export default function NewReport() {
 
       if (!response.ok) {
         const errData = await response.json();
-        throw new Error(errData.detail || 'Failed to analyze notes/image');
+        throw new Error(errData.detail || 'Failed to analyze evidence');
       }
 
       const data = await response.json();
@@ -164,7 +185,7 @@ export default function NewReport() {
 
         // Dynamically add field to UI form list if not already present
         if (!currentFields.some(f => f.name.toLowerCase().replace(/[^a-z0-9]/g, '') === key.toLowerCase().replace(/[^a-z0-9]/g, ''))) {
-          const isLongText = ['objectives', 'methodology', 'outcomes', 'activity_summary', 'strengths', 'weaknesses', 'feedback_summary'].includes(key.toLowerCase());
+          const isLongText = ['objectives', 'methodology', 'outcomes', 'activity_summary', 'strengths', 'weaknesses', 'opportunities', 'threats', 'feedback_summary', 'feedback_interpretation'].includes(key.toLowerCase());
           currentFields.push({
             name: key,
             label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
@@ -177,9 +198,16 @@ export default function NewReport() {
       setFields(currentFields);
       setValues(newValues);
     } catch (err: any) {
-      setError(err.message || 'An error occurred during AI OCR analysis');
+      setError(err.message || 'An error occurred during AI evidence extraction');
     } finally {
       setIsAutofilling(false);
+    }
+  };
+
+  // Handle Source Material file select
+  const handleAddSourceFiles = (files: FileList | null) => {
+    if (files) {
+      setSourceFiles(prev => [...prev, ...Array.from(files)]);
     }
   };
 
@@ -195,11 +223,22 @@ export default function NewReport() {
     }
   };
 
+  // Handle Feedback Graph image select
+  const handleFeedbackGraphSelect = (file: File | null) => {
+    if (file) {
+      setFeedbackGraph(file);
+      if (file.type.startsWith('image/')) {
+        setFeedbackGraphPreviewUrl(URL.createObjectURL(file));
+      } else {
+        setFeedbackGraphPreviewUrl(null);
+      }
+    }
+  };
+
   // Handle Event Photos multiple file select
   const handleAddEventPhotos = (files: FileList | null) => {
     if (files) {
-      const fileArray = Array.from(files);
-      setEventPhotos(prev => [...prev, ...fileArray]);
+      setEventPhotos(prev => [...prev, ...Array.from(files)]);
     }
   };
 
@@ -215,8 +254,15 @@ export default function NewReport() {
 
     const formData = new FormData();
     formData.append('values', JSON.stringify(values));
+    
     if (noticeFile) {
       formData.append('notice_file', noticeFile);
+    }
+    if (feedbackGraph) {
+      formData.append('feedback_graph', feedbackGraph);
+    }
+    if (values.feedback_interpretation) {
+      formData.append('feedback_interpretation', values.feedback_interpretation);
     }
     eventPhotos.forEach(photo => {
       formData.append('event_photos', photo);
@@ -278,87 +324,75 @@ export default function NewReport() {
 
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Generate New Report</h1>
+      <div className="border-b dark:border-slate-800 pb-4">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">Generate New Report</h1>
+        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">
+          Upload your available evidence (notes, notices, brochures, photos, feedback charts). AI will extract and map factual information into your official report format.
+        </p>
+      </div>
 
-      {/* 1. AI Auto-Fill with Notes or Handwritten Image OCR */}
+      {/* 1. Source Material & Notes Section */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-blue-600 dark:text-indigo-400" /> AI Auto-Fill & Vision OCR
+            <FileText className="w-5 h-5 text-blue-600 dark:text-indigo-400" /> 1. Source Material & Notes
           </h2>
           <span className="text-xs bg-blue-50 dark:bg-indigo-900/50 text-blue-700 dark:text-indigo-300 px-2.5 py-1 rounded-full font-medium">
-            Handwritten Notes & Image OCR
+            Notes / PDF / DOCX / TXT
           </span>
         </div>
-        <p className="text-sm text-gray-500 dark:text-slate-400">
-          Upload a photo of handwritten notes/documents or paste text notes. Gemini Vision API will extract information and automatically fill the form fields.
-        </p>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <textarea
             className="w-full border border-gray-300 dark:border-slate-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
             rows={4}
-            placeholder="Paste raw transcript, meeting notes, or session details here..."
+            placeholder="Paste raw transcript, meeting notes, session summary, or rough details here..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
           />
 
           <div
-            onClick={() => ocrInputRef.current?.click()}
+            onClick={() => sourceFilesInputRef.current?.click()}
             className="border-2 border-dashed border-gray-300 dark:border-slate-700 hover:border-blue-500 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-50 dark:bg-slate-900/50 hover:bg-blue-50/50 transition text-center"
           >
-            <ImageIcon className="w-8 h-8 text-blue-500 mb-2" />
+            <Upload className="w-8 h-8 text-blue-500 mb-2" />
             <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
-              {ocrImage ? ocrImage.name : 'Upload Photo of Notes / Document'}
+              Upload Document Files
             </p>
-            <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Supports JPG, PNG, PDF (Handwritten or Printed)</p>
+            <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Supports PDF, DOCX, TXT files</p>
             <input
               type="file"
-              ref={ocrInputRef}
+              multiple
+              ref={sourceFilesInputRef}
               className="hidden"
-              accept=".jpg,.jpeg,.png,.pdf"
-              onChange={(e) => e.target.files && setOcrImage(e.target.files[0])}
+              accept=".pdf,.docx,.txt"
+              onChange={(e) => handleAddSourceFiles(e.target.files)}
             />
           </div>
         </div>
 
-        {ocrImage && (
-          <div className="flex items-center justify-between p-2.5 bg-blue-50 dark:bg-slate-900 border border-blue-200 dark:border-indigo-800/50 rounded-lg text-xs">
-            <span className="text-blue-900 dark:text-indigo-300 font-medium truncate">Selected Image: {ocrImage.name}</span>
-            <button onClick={() => setOcrImage(null)} className="text-blue-600 dark:text-indigo-400 hover:underline">
-              Remove
-            </button>
+        {sourceFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 pt-2">
+            {sourceFiles.map((sf, idx) => (
+              <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 dark:bg-slate-900 border border-blue-200 dark:border-indigo-800/50 rounded-lg text-xs font-medium text-blue-900 dark:text-indigo-300">
+                <FileCheck className="w-3.5 h-3.5 text-blue-600" />
+                <span className="truncate max-w-[200px]">{sf.name}</span>
+                <button onClick={() => setSourceFiles(prev => prev.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 ml-1">
+                  &times;
+                </button>
+              </div>
+            ))}
           </div>
         )}
-
-        <div className="flex justify-end pt-2">
-          <button
-            onClick={handleAutoFillWithImage}
-            disabled={isAutofilling || (!notes.trim() && !ocrImage)}
-            className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-medium shadow-xs disabled:opacity-50 transition text-sm"
-          >
-            {isAutofilling ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Analyzing Image & Text...
-              </>
-            ) : (
-              <>
-                <Sparkles className="w-4 h-4" />
-                Auto-Fill Form
-              </>
-            )}
-          </button>
-        </div>
       </div>
 
-      {/* 2. Notice and Brochure Dedicated Upload Section */}
+      {/* 2. Notice & Brochure Section */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 space-y-4">
         <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-          <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> Upload Notice and Brochure Photo
+          <FileText className="w-5 h-5 text-indigo-600 dark:text-indigo-400" /> 2. Official Documents (Notice / Brochure / Circular)
         </h2>
         <p className="text-sm text-gray-500 dark:text-slate-400">
-          Upload the event notice, brochure flyer, or announcement photo. It will be embedded into the generated document.
+          Upload event notice, brochure flyer, circular, or certificate. AI will extract official dates, speaker details, and venue, and embed the document as proof into the report.
         </p>
 
         <div
@@ -387,7 +421,7 @@ export default function NewReport() {
               )}
               <div>
                 <p className="font-semibold text-indigo-900 dark:text-indigo-200">{noticeFile.name}</p>
-                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">Ready to attach to report</p>
+                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium">Informational document ready for OCR & DOCX embedding</p>
               </div>
             </div>
             <button
@@ -400,18 +434,18 @@ export default function NewReport() {
         )}
       </div>
 
-      {/* 3. NEW FEATURE: Event Photos Section (Multiple Uploads & 2x3 Grid Layout) */}
+      {/* 3. Event Photographs Section */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
-            <Images className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> Event Photos (Multiple Uploads)
+            <Images className="w-5 h-5 text-emerald-600 dark:text-emerald-400" /> 3. Event Photographs (Evidence)
           </h2>
           <span className="text-xs bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 px-2.5 py-1 rounded-full font-medium">
-            Automated 2x3 Grid Layout
+            2-Column Evidence Grid
           </span>
         </div>
         <p className="text-sm text-gray-500 dark:text-slate-400">
-          Upload multiple event photographs (e.g. 2, 4, 6 photos). The system automatically formats them into a neat 2-column grid layout on a dedicated page in your document.
+          Upload event photographs (students attending, speaker delivering session, group photos). They will be formatted into a neat 2-column evidence section in the report.
         </p>
 
         <div
@@ -420,9 +454,9 @@ export default function NewReport() {
         >
           <Images className="w-8 h-8 text-emerald-500 mb-2" />
           <p className="text-sm font-semibold text-gray-700 dark:text-slate-300">
-            Click to upload multiple Event Photos
+            Click to upload Event Photographs
           </p>
-          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select 2, 4, 6 or more photos (JPG, PNG)</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Select multiple photos (JPG, PNG)</p>
           <input
             type="file"
             multiple
@@ -433,7 +467,6 @@ export default function NewReport() {
           />
         </div>
 
-        {/* Selected Event Photos Grid Preview */}
         {eventPhotos.length > 0 && (
           <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
@@ -459,10 +492,6 @@ export default function NewReport() {
                   <p className="text-[11px] font-medium text-gray-800 dark:text-slate-200 truncate w-full text-center">
                     {photo.name}
                   </p>
-                  <p className="text-[10px] text-gray-400">
-                    {(photo.size / 1024).toFixed(1)} KB
-                  </p>
-                  
                   <button
                     onClick={() => handleRemoveEventPhoto(idx)}
                     className="absolute top-1 right-1 p-1 bg-red-600 text-white rounded-full opacity-80 hover:opacity-100 transition shadow"
@@ -477,10 +506,94 @@ export default function NewReport() {
         )}
       </div>
 
-      {/* 4. Consolidated 3-State Checklist Box */}
+      {/* 4. Feedback Analysis Section */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white flex items-center gap-2">
+            <BarChart2 className="w-5 h-5 text-purple-600 dark:text-purple-400" /> 4. Feedback Analysis & Graph Chart
+          </h2>
+          <span className="text-xs bg-purple-50 dark:bg-purple-900/40 text-purple-700 dark:text-purple-300 px-2.5 py-1 rounded-full font-medium">
+            Feedback Graph + AI Summary
+          </span>
+        </div>
+        <p className="text-sm text-gray-500 dark:text-slate-400">
+          Upload a feedback graph/chart image. AI will analyze the graph visuals and write a short factual interpretation underneath it in the report.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div
+            onClick={() => feedbackGraphInputRef.current?.click()}
+            className="border-2 border-dashed border-gray-300 dark:border-slate-700 hover:border-purple-500 rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer bg-gray-50 dark:bg-slate-900/50 hover:bg-purple-50/50 transition text-center"
+          >
+            <BarChart2 className="w-8 h-8 text-purple-500 mb-2" />
+            <p className="text-xs font-semibold text-gray-700 dark:text-slate-300">
+              {feedbackGraph ? feedbackGraph.name : 'Upload Feedback Graph / Chart Image'}
+            </p>
+            <p className="text-[10px] text-gray-500 dark:text-slate-400 mt-1">Supports PNG, JPG, PDF</p>
+            <input
+              type="file"
+              ref={feedbackGraphInputRef}
+              className="hidden"
+              accept=".png,.jpg,.jpeg,.pdf"
+              onChange={(e) => e.target.files && handleFeedbackGraphSelect(e.target.files[0])}
+            />
+          </div>
+
+          <textarea
+            className="w-full border border-gray-300 dark:border-slate-700 rounded-xl p-3 text-sm focus:ring-2 focus:ring-purple-500 outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
+            rows={4}
+            placeholder="Optional manual feedback notes or survey remarks..."
+            value={feedbackNotes}
+            onChange={(e) => setFeedbackNotes(e.target.value)}
+          />
+        </div>
+
+        {feedbackGraph && (
+          <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-slate-900 border border-purple-200 dark:border-purple-800/50 rounded-xl text-xs">
+            <div className="flex items-center gap-3">
+              {feedbackGraphPreviewUrl && (
+                <img src={feedbackGraphPreviewUrl} alt="Feedback Chart" className="w-12 h-12 object-cover rounded-lg border dark:border-slate-700" />
+              )}
+              <div>
+                <p className="font-semibold text-purple-900 dark:text-purple-200">{feedbackGraph.name}</p>
+                <p className="text-[10px] text-purple-600 dark:text-purple-400 font-medium">Ready for Feedback Analysis section insertion</p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setFeedbackGraph(null); setFeedbackGraphPreviewUrl(null); }}
+              className="text-red-600 dark:text-red-400 hover:underline font-medium px-2 py-1"
+            >
+              Remove
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Action Bar: Run AI Multi-Modal Extraction */}
+      <div className="flex justify-end pt-2">
+        <button
+          onClick={handleAutoFillAllEvidence}
+          disabled={isAutofilling}
+          className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-semibold shadow-md disabled:opacity-50 transition text-sm cursor-pointer"
+        >
+          {isAutofilling ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              AI Analyzing Evidence Set...
+            </>
+          ) : (
+            <>
+              <Sparkles className="w-5 h-5" />
+              Extract & Auto-Fill Form with AI
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* 5. Checklist Box */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 space-y-4">
         <div className="flex items-center justify-between border-b dark:border-slate-700 pb-3">
-          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Checklist</h2>
+          <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Checklist Proofs Attached</h2>
           <span className="text-xs text-gray-500 dark:text-slate-400">Select status for each annexure / document</span>
         </div>
 
@@ -537,17 +650,17 @@ export default function NewReport() {
         </div>
       </div>
 
-      {/* 5. Form Fields Grid (NO mandatory required constraints) */}
+      {/* 6. Form Fields Grid */}
       <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700">
         <form onSubmit={handleGenerate} className="space-y-6">
           <div className="border-b dark:border-slate-700 pb-3">
-            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Event Report Details</h2>
-            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">All fields are optional. Leave empty fields blank in the generated document.</p>
+            <h2 className="text-xl font-semibold text-gray-800 dark:text-white">Event Report Fields</h2>
+            <p className="text-xs text-gray-500 dark:text-slate-400 mt-1">Fields populated by AI evidence extraction. Leave empty fields blank if not supported by evidence.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {standardFields.map((field, index) => (
-              <div key={index} className="flex flex-col space-y-1">
+              <div key={index} className={`flex flex-col space-y-1 ${field.type === 'textarea' ? 'md:col-span-2' : ''}`}>
                 <label className="text-sm font-semibold text-gray-700 dark:text-slate-300">
                   {field.label}
                 </label>
@@ -557,14 +670,7 @@ export default function NewReport() {
                     rows={3}
                     value={values[field.name] || ''}
                     onChange={(e) => handleChange(field.name, e.target.value)}
-                    placeholder="Optional..."
-                  />
-                ) : field.type === 'date' ? (
-                  <input
-                    type="date"
-                    className="border border-gray-300 dark:border-slate-700 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
-                    value={values[field.name] || ''}
-                    onChange={(e) => handleChange(field.name, e.target.value)}
+                    placeholder="Optional or empty if not in evidence..."
                   />
                 ) : (
                   <input
@@ -572,7 +678,7 @@ export default function NewReport() {
                     className="border border-gray-300 dark:border-slate-700 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white dark:bg-slate-900 text-gray-900 dark:text-white"
                     value={values[field.name] || ''}
                     onChange={(e) => handleChange(field.name, e.target.value)}
-                    placeholder="Optional..."
+                    placeholder="Optional or empty if not in evidence..."
                   />
                 )}
               </div>
@@ -589,7 +695,7 @@ export default function NewReport() {
             <button
               type="submit"
               disabled={isGenerating}
-              className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-sm hover:shadow transition disabled:opacity-50"
+              className="flex items-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-sm hover:shadow transition disabled:opacity-50 cursor-pointer"
             >
               {isGenerating ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
               Generate Document
@@ -598,7 +704,7 @@ export default function NewReport() {
         </form>
       </div>
 
-      {/* 6. Generation Results Bar */}
+      {/* 7. Generation Results Bar */}
       {generatedFiles && (
         <div className="bg-emerald-50 dark:bg-emerald-900/30 p-6 rounded-2xl border border-emerald-200 dark:border-emerald-700/50 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
