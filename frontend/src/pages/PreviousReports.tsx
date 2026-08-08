@@ -68,6 +68,26 @@ export default function PreviousReports() {
     return `${API_BASE_URL}${urlStr.startsWith('/') ? '' : '/'}${urlStr}`;
   };
 
+  const handleDownloadFile = async (urlStr: string, defaultFilename: string) => {
+    try {
+      const targetUrl = getFullUrl(urlStr);
+      const res = await fetch(targetUrl);
+      if (!res.ok) throw new Error('Failed to download file');
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = defaultFilename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Blob download fallback:', err);
+      window.open(getFullUrl(urlStr), '_blank');
+    }
+  };
+
   const filteredReports = reports.filter((r) =>
     (r.activity_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
     (r.docx_filename || r.docxFilename || '').toLowerCase().includes(searchQuery.toLowerCase())
@@ -88,7 +108,7 @@ export default function PreviousReports() {
         <button
           onClick={fetchReports}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs sm:text-sm font-medium transition self-start md:self-auto shadow-xs"
+          className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-xs sm:text-sm font-medium transition self-start md:self-auto shadow-xs cursor-pointer"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh List
@@ -145,8 +165,8 @@ export default function PreviousReports() {
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700/50">
                 {filteredReports.map((report) => {
                   const id = report.id || report.docx_filename || report.docxFilename || '';
-                  const docxFile = report.docx_filename || report.docxFilename;
-                  const pdfFile = report.pdf_filename || report.pdfFilename;
+                  const docxFile = report.docx_filename || report.docxFilename || 'report.docx';
+                  const pdfFile = report.pdf_filename || report.pdfFilename || 'report.pdf';
                   const docxUrl = report.docx_url || (docxFile ? `/generated/${docxFile}` : '');
                   const pdfUrl = report.pdf_url || (pdfFile ? `/generated/${pdfFile}` : '');
 
@@ -173,27 +193,27 @@ export default function PreviousReports() {
                       <td className="px-6 py-4 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {docxUrl && (
-                            <a
-                              href={getFullUrl(docxUrl)}
-                              download
-                              className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-medium rounded-lg text-xs transition"
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadFile(docxUrl, docxFile)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-medium rounded-lg text-xs transition cursor-pointer"
                             >
                               <Download className="w-3.5 h-3.5" /> DOCX
-                            </a>
+                            </button>
                           )}
                           {pdfUrl && (
-                            <a
-                              href={getFullUrl(pdfUrl)}
-                              download
-                              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-medium rounded-lg text-xs transition"
+                            <button
+                              type="button"
+                              onClick={() => handleDownloadFile(pdfUrl, pdfFile)}
+                              className="flex items-center gap-1 px-3 py-1.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-medium rounded-lg text-xs transition cursor-pointer"
                             >
                               <Download className="w-3.5 h-3.5" /> PDF
-                            </a>
+                            </button>
                           )}
                           <button
                             onClick={() => handleDelete(id)}
                             disabled={deletingId === id}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition cursor-pointer"
                             title="Delete Report"
                           >
                             <Trash2 className="w-4 h-4" />

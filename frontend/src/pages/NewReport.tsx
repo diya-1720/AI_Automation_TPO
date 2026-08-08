@@ -49,7 +49,7 @@ export default function NewReport() {
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [generatedFiles, setGeneratedFiles] = useState<{ docxUrl: string, pdfUrl: string | null } | null>(null);
+  const [generatedFiles, setGeneratedFiles] = useState<{ docxUrl: string, pdfUrl: string | null, docxFilename?: string, pdfFilename?: string | null } | null>(null);
   
   // Notes & Image OCR Auto-Fill State
   const [notes, setNotes] = useState('');
@@ -70,9 +70,22 @@ export default function NewReport() {
     fetchFieldsAndSettings();
   }, []);
 
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeoutMs = 5000) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(url, { ...options, signal: controller.signal });
+      clearTimeout(timer);
+      return response;
+    } catch (err) {
+      clearTimeout(timer);
+      throw err;
+    }
+  };
+
   const fetchFieldsAndSettings = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/templates/fields`);
+      const response = await fetchWithTimeout(`${API_BASE_URL}/api/templates/fields`);
       if (response.ok) {
         const data = await response.json();
         if (data.fields && data.fields.length > 0) {
@@ -81,7 +94,7 @@ export default function NewReport() {
       }
 
       // Load settings for auto-fill defaults
-      const settingsRes = await fetch(`${API_BASE_URL}/api/settings`);
+      const settingsRes = await fetchWithTimeout(`${API_BASE_URL}/api/settings`);
       if (settingsRes.ok) {
         const settingsData = await settingsRes.json();
         setValues(prev => ({
@@ -94,7 +107,7 @@ export default function NewReport() {
         }));
       }
     } catch (err) {
-      console.log('Using default template fields fallback');
+      console.log('Using default template fields fallback due to timeout or network error');
     } finally {
       setIsLoading(false);
     }
@@ -226,6 +239,32 @@ export default function NewReport() {
       setError(err.message || 'An error occurred while generating the document');
     } finally {
       setIsGenerating(false);
+    }
+  };
+
+  const getFullUrl = (urlStr?: string | null) => {
+    if (!urlStr) return '';
+    if (urlStr.startsWith('http://') || urlStr.startsWith('https://')) return urlStr;
+    return `${API_BASE_URL}${urlStr.startsWith('/') ? '' : '/'}${urlStr}`;
+  };
+
+  const handleDownloadFile = async (urlStr: string, defaultFilename: string) => {
+    try {
+      const targetUrl = getFullUrl(urlStr);
+      const res = await fetch(targetUrl);
+      if (!res.ok) throw new Error('Failed to download file');
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = defaultFilename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error('Blob download fallback:', err);
+      window.open(getFullUrl(urlStr), '_blank');
     }
   };
 
@@ -571,22 +610,22 @@ export default function NewReport() {
 
           <div className="flex gap-4">
             {generatedFiles.docxUrl && (
-              <a
-                href={generatedFiles.docxUrl}
-                download
-                className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-xl font-medium hover:bg-emerald-100 dark:hover:bg-slate-700 transition shadow-xs text-sm"
+              <button
+                type="button"
+                onClick={() => handleDownloadFile(generatedFiles.docxUrl, generatedFiles.docxFilename || 'report.docx')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 rounded-xl font-medium hover:bg-emerald-100 dark:hover:bg-slate-700 transition shadow-xs text-sm cursor-pointer"
               >
                 <Download className="w-4 h-4" /> Download DOCX
-              </a>
+              </button>
             )}
             {generatedFiles.pdfUrl && (
-              <a
-                href={generatedFiles.pdfUrl}
-                download
-                className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 rounded-xl font-medium hover:bg-red-50 dark:hover:bg-slate-700 transition shadow-xs text-sm"
+              <button
+                type="button"
+                onClick={() => generatedFiles.pdfUrl && handleDownloadFile(generatedFiles.pdfUrl, generatedFiles.pdfFilename || 'report.pdf')}
+                className="flex items-center gap-2 px-5 py-2.5 bg-white dark:bg-slate-800 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 rounded-xl font-medium hover:bg-red-50 dark:hover:bg-slate-700 transition shadow-xs text-sm cursor-pointer"
               >
                 <Download className="w-4 h-4" /> Download PDF
-              </a>
+              </button>
             )}
           </div>
         </div>
