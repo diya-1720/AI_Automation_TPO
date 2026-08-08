@@ -4,15 +4,15 @@ backend/__pycache__/
 *.pyc
 
 # Environment files & Secrets
+.env
+.env.local
 backend/.env
 frontend/.env
 frontend/.env.local
 
 # Generated reports & Uploads
 generated/
-templates/
 backend/generated/
-backend/templates/master_*
 
 # Node & Build artifacts
 frontend/node_modules/

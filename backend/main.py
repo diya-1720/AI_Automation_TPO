@@ -48,6 +48,30 @@ REPORTS_DB_PATH = os.path.join(GENERATED_DIR, "reports_db.json")
 USERS_DB_PATH = os.path.join(GENERATED_DIR, "users_db.json")
 SETTINGS_DB_PATH = os.path.join(GENERATED_DIR, "settings_db.json")
 
+def get_builtin_template_path() -> str:
+    possible_paths = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "templates", "Template.docx")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "templates", "Template.docx")),
+        os.path.abspath(os.path.join(os.getcwd(), "backend", "templates", "Template.docx")),
+        os.path.abspath(os.path.join(os.getcwd(), "templates", "Template.docx")),
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            return p
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "templates", "Template.docx"))
+
+def get_builtin_fields_config_path() -> str:
+    possible_paths = [
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "templates", "fields_config.json")),
+        os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "templates", "fields_config.json")),
+        os.path.abspath(os.path.join(os.getcwd(), "backend", "templates", "fields_config.json")),
+        os.path.abspath(os.path.join(os.getcwd(), "templates", "fields_config.json")),
+    ]
+    for p in possible_paths:
+        if os.path.exists(p):
+            return p
+    return ""
+
 
 # Helper for Password Hashing
 def hash_password(password: str, salt: str = "spc_shared_salt") -> str:
@@ -376,308 +400,11 @@ async def get_previous_reports():
     except Exception as e:
         return {"reports": []}
 
-@router.post("/templates/analyze-evidence")
-async def analyze_template_and_evidence(
-    master_template: Optional[UploadFile] = File(None),
-    evidence_files: List[UploadFile] = File([])
-):
-    master_doc_text = ""
-    template_filename = "Template.docx"
-
-    if master_template and master_template.filename:
-        filename = master_template.filename
-        ext = os.path.splitext(filename)[1].lower()
-        contents = await master_template.read()
-        template_filename = filename
-        
-        save_path = os.path.join(TEMPLATES_DIR, filename)
-        with open(save_path, "wb") as f:
-            f.write(contents)
-
-        if ext == ".docx":
-            master_doc_text = extract_text_from_docx_bytes(contents)
-        elif ext == ".pdf":
-            master_doc_text = extract_text_from_pdf_bytes(contents)
-
-    combined_evidence_text = ""
-    processed_photos = []
-
-    for ev_file in evidence_files:
-        if not ev_file.filename:
-            continue
-        ext = os.path.splitext(ev_file.filename)[1].lower()
-        contents = await ev_file.read()
-
-        if ext == ".docx":
-            combined_evidence_text += f"\n--- Evidence DOCX ({ev_file.filename}) ---\n"
-            combined_evidence_text += extract_text_from_docx_bytes(contents)
-        elif ext == ".pdf":
-            combined_evidence_text += f"\n--- Evidence PDF ({ev_file.filename}) ---\n"
-            combined_evidence_text += extract_text_from_pdf_bytes(contents)
-        elif ext in [".jpg", ".jpeg", ".png"]:
-            ocr_res = extract_text_from_image_bytes(contents, ev_file.filename)
-            combined_evidence_text += f"\n--- Evidence Image OCR ({ev_file.filename}) ---\n{ocr_res}\n"
-            
-            unique_name = f"ev_{int(time.time())}_{ev_file.filename}"
-            photo_save_path = os.path.join(UPLOADS_DIR, unique_name)
-            with open(photo_save_path, "wb") as f:
-                f.write(contents)
-            
-            api_base = os.getenv("API_BASE_URL", "").rstrip("/")
-            photo_url = f"{api_base}/generated/uploads/{unique_name}" if api_base else f"/generated/uploads/{unique_name}"
-            
-            processed_photos.append({
-                "filename": ev_file.filename,
-                "saved_path": photo_save_path,
-                "url": photo_url
-            })
-
-    prompt = f"""
-You are an AI Event Documentation Assistant. Analyze the master template and extracted evidence files.
-Identify all dynamic placeholders in the template and map extracted values from evidence.
-Also generate professional academic report sections: Activity Summary, Objectives (bullet points), Outcomes (bullet points), Brief Event Description.
-
-Return ONLY a valid JSON object matching this exact structure:
-{{
-  "fields": [
-    {{
-      "name": "activity_name",
-      "label": "Activity Name",
-      "type": "text",
-      "value": "Extracted Activity Name",
-      "originalText": "Original text or placeholder in master template",
-      "confidence_score": 95,
-      "confidence_level": "high"
-    }}
-  ],
-  "generated_summaries": {{
-    "activity_summary": "Synthesized 2-3 paragraph professional activity summary",
-    "objectives": "• Objective 1\\n• Objective 2\\n• Objective 3",
-    "outcomes": "• Outcome 1\\n• Outcome 2\\n• Outcome 3",
-    "event_description": "Detailed event description highlighting key moments"
-  }},
-  "photo_assignments": [
-    {{
-      "placeholder": "[PHOTO_1]",
-      "label": "Event Photo 1",
-      "assigned_photo_filename": "photo1.jpg",
-      "description": "Photo placement reasoning"
-    }}
-  ]
-}}
-
-Master Template Text:
-{master_doc_text if master_doc_text else "Default Activity Report Template"}
-
-Extracted Evidence Text:
-{combined_evidence_text}
-"""
-
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
-        if response_text.startswith("```json"): response_text = response_text[7:]
-        elif response_text.startswith("```"): response_text = response_text[3:]
-        if response_text.endswith("```"): response_text = response_text[:-3]
-            
-        analysis_data = json.loads(response_text)
-    except Exception as e:
-        print(f"Gemini analysis notice: {e}")
-        analysis_data = {
-            "fields": [
-                {"name": "activity_name", "label": "Activity Name", "type": "text", "value": "SPC Activity Report", "originalText": "Activity Name", "confidence_score": 85, "confidence_level": "high"},
-                {"name": "date_time", "label": "Date & Time", "type": "text", "value": datetime.now().strftime("%Y-%m-%d"), "originalText": "Date", "confidence_score": 90, "confidence_level": "high"},
-                {"name": "venue", "label": "Venue", "type": "text", "value": "Main Auditorium", "originalText": "Venue", "confidence_score": 80, "confidence_level": "medium"},
-                {"name": "department", "label": "Department", "type": "text", "value": "Training & Placement Cell", "originalText": "Department", "confidence_score": 95, "confidence_level": "high"}
-            ],
-            "generated_summaries": {
-                "activity_summary": "Professional activity organized for skill enhancement.", "objectives": "• Enhance skills\n• Knowledge sharing", "outcomes": "• Student participation\n• Practical insights", "event_description": "Event conducted successfully."
-            },
-            "photo_assignments": []
-        }
-
-    for p in processed_photos:
-        p["assigned_placeholder"] = next(
-            (pa.get("placeholder") for pa in analysis_data.get("photo_assignments", []) if pa.get("assigned_photo_filename") == p["filename"]),
-            "[PHOTO_1]"
-        )
-
-    return {
-        "template_filename": template_filename,
-        "fields": analysis_data.get("fields", []),
-        "generated_summaries": analysis_data.get("generated_summaries", {}),
-        "photo_assignments": analysis_data.get("photo_assignments", []),
-        "uploaded_photos": processed_photos,
-        "evidence_files_count": len(evidence_files)
-    }
-
-# Endpoint for Custom Template Upload & Extraction (Supports DOCX & PDF)
-@router.post("/templates/analyze", response_model=AnalyzeTemplateResponse)
-async def analyze_template(file: UploadFile = File(...)):
-    filename = file.filename or ""
-    ext = os.path.splitext(filename)[1].lower()
-    
-    if ext not in [".docx", ".pdf"]:
-        raise HTTPException(status_code=400, detail="Only DOCX and PDF template files are supported.")
-    
-    contents = await file.read()
-    document_text = ""
-
-    if ext == ".docx":
-        save_path = os.path.join(TEMPLATES_DIR, "Template.docx")
-        with open(save_path, "wb") as f:
-            f.write(contents)
-        document_text = extract_text_from_docx_bytes(contents)
-    elif ext == ".pdf":
-        document_text = extract_text_from_pdf_bytes(contents)
-
-    prompt = f"""
-Analyze the document template and identify dynamic form fields.
-Return ONLY a JSON array of objects with name, label, type, originalText.
-Document Text:
-{document_text}
-"""
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
-        if response_text.startswith("```json"): response_text = response_text[7:]
-        if response_text.endswith("```"): response_text = response_text[:-3]
-            
-        fields = json.loads(response_text)
-        return AnalyzeTemplateResponse(fields=fields)
-    except Exception as e:
-        return AnalyzeTemplateResponse(fields=[
-            {"name": "activity_name", "label": "Activity Name", "type": "text", "originalText": "Activity Name"},
-            {"name": "date_time", "label": "Date & Time", "type": "text", "originalText": "Date"},
-            {"name": "venue", "label": "Venue", "type": "text", "originalText": "Venue"},
-            {"name": "department", "label": "Department", "type": "text", "originalText": "Department"}
-        ])
-
-# Upgraded Auto-Fill supporting Text Notes & Handwritten/Printed Image OCR
-@router.post("/templates/auto-fill-image")
-async def auto_fill_image(
-    notes: Optional[str] = Form(None),
-    ocr_image: Optional[UploadFile] = File(None)
-):
-    ocr_text = ""
-    if ocr_image and ocr_image.filename:
-        image_bytes = await ocr_image.read()
-        ocr_text = extract_text_from_image_bytes(image_bytes, ocr_image.filename)
-
-    combined_input = ""
-    if notes: combined_input += f"User Text Notes:\n{notes}\n\n"
-    if ocr_text: combined_input += f"Extracted Image OCR Text:\n{ocr_text}"
-
-    if not combined_input.strip():
-        combined_input = "Event Activity Notes: General training session organized by TPO cell."
-
-    prompt = f"""
-You are an expert academic documentation assistant for university and college event/activity reports.
-The user will provide raw, unstructured, or brief notes, transcripts, or OCR text extracted from images about an event/activity (e.g. "AI guest lecture", "Python workshop", "Campus placement drive").
-
-YOUR MANDATE:
-Do NOT just extract or paste raw text 1-to-1. Act as a generative AI assistant (similar to ChatGPT) to actively generate, expand, and synthesize professional, formal academic content for an official report based on the context.
-
-INSTRUCTIONS FOR GENERATION:
-1. "activity_name": Expand brief notes into a formal, clear academic title (e.g. "Guest Lecture on Artificial Intelligence & Emerging Industry Trends").
-2. "date_time": Extract if present, or provide current date if unspecified.
-3. "venue": Extract if present, or infer an appropriate campus location (e.g. "Main Seminar Hall, Campus").
-4. "department": Extract or infer (e.g. "Department of Computer Engineering / TPO Cell").
-5. "organizer" / "activity_incharge": Extract or infer (e.g. "Training & Placement Cell").
-6. "resource_person": Extract or infer (e.g. "Industry Technical Expert & Guest Speaker").
-7. "participants" / "target_audience": Infer target audience (e.g. "Third & Final Year Engineering Students").
-8. "nature_of_activity": Academic / Technical / Training / Workshop / Guest Lecture.
-9. "mode_of_activity": Offline / Hybrid / Online.
-
-GENERATIVE ACADEMIC SECTIONS (EXPAND CREATIVELY & PROFESSIONALLY):
-- "objectives": Generate 3-4 professional academic bullet points explaining the logical goals and learning objectives of this event based on the topic. Format each point with a bullet '• '.
-- "methodology": Write a formal academic paragraph (4-6 sentences) explaining the step-by-step process of how this event was conducted (opening address, core presentation, hands-on demonstration, Q&A session, vote of thanks).
-- "outcomes": Generate 3-4 clear academic outcome bullet points detailing student skill gains and practical takeaways. Format each point with a bullet '• '.
-- "activity_summary": Write a cohesive 2-paragraph executive summary suitable for institutional records.
-- "strengths": List 2-3 key event strengths (e.g. "• High student participation\n• Industry expert insights\n• Interactive Q&A session").
-- "weaknesses": List 1-2 constructive points (e.g. "• Time constraint for advanced hands-on lab exercises").
-- "feedback_summary": Write a formal summary of participant feedback (e.g. "Participant feedback was overwhelmingly positive with 95%+ satisfaction rating across content, delivery, and relevance.").
-
-Return ONLY a valid JSON object with these snake_case keys:
-activity_name, date_time, venue, department, activity_incharge, activity_coordinator, resource_person, nature_of_activity, mode_of_activity, participants, target_audience, objectives, methodology, outcomes, activity_summary, strengths, weaknesses, feedback_summary.
-
-Notes & Context Input:
-{combined_input}
-"""
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        response = model.generate_content(prompt)
-        response_text = response.text.strip()
-        if response_text.startswith("```json"): response_text = response_text[7:]
-        elif response_text.startswith("```"): response_text = response_text[3:]
-        if response_text.endswith("```"): response_text = response_text[:-3]
-            
-        data = json.loads(response_text)
-        return data
-    except Exception as e:
-        print(f"Auto-fill generative fallback: {e}")
-        raw_topic = notes.strip().split('\n')[0][:40] if notes else "Training & Placement Session"
-        topic = re.sub(r'[^\w\s-]', '', raw_topic).strip() or "Training & Placement Session"
-        return {
-            "activity_name": f"Interactive Session on {topic}",
-            "date_time": datetime.now().strftime("%Y-%m-%d"),
-            "venue": "Main Seminar Hall, Campus",
-            "department": "Training & Placement Cell",
-            "activity_incharge": "TPO Coordinator",
-            "activity_coordinator": "Faculty Coordinator",
-            "resource_person": "Domain Industry Expert",
-            "nature_of_activity": "Technical Training & Placement Guidance",
-            "mode_of_activity": "Offline Session",
-            "participants": "120+ Students & Faculty Members",
-            "objectives": "• To impart comprehensive practical knowledge and core domain concepts to students.\n• To bridge the gap between academic curriculum and current industry requirements.\n• To facilitate interactive technical discussions and career guidance.",
-            "methodology": f"The event on '{topic}' commenced with a welcome address and introduction of the guest speaker. The speaker conducted an engaging session covering fundamental concepts, technical workflows, and real-world case studies. This was followed by an interactive Q&A session where students addressed their queries, concluding with a vote of thanks.",
-            "outcomes": "• Participants developed a clear understanding of core domain principles and industry trends.\n• Students acquired actionable insights into career opportunities and technical preparation.\n• Enhanced engagement and active participation during practical Q&A discussions.",
-            "activity_summary": f"A comprehensive training session on {topic} was organized successfully for students. The program aimed to equip participants with industry-relevant skills and practical perspectives.",
-            "strengths": "• Excellent student attendance and interactive participation.\n• Well-structured presentation with real-world case studies.",
-            "weaknesses": "• Need for extended hands-on laboratory duration in future sessions.",
-            "feedback_summary": "Overall feedback received from students was highly encouraging with 95%+ positive rating."
-        }
-
-@router.post("/templates/auto-fill")
-async def auto_fill(request: AutoFillRequest):
-    return await auto_fill_image(notes=request.notes, ocr_image=None)
-
-@router.post("/templates/save")
-async def save_template(request: SaveTemplateRequest):
-    save_path = os.path.join(TEMPLATES_DIR, "fields_config.json")
-    with open(save_path, "w") as f:
-        json.dump([field.model_dump() for field in request.fields], f)
-    return {"message": "Template saved successfully"}
-
-DEFAULT_ACADEMIC_FIELDS = [
-    {"name": "activity_name", "label": "Name of the Activity", "type": "text", "originalText": "Name of the Activity"},
-    {"name": "date_time", "label": "Date & Time", "type": "text", "originalText": "Date & Time"},
-    {"name": "venue", "label": "Venue / Location", "type": "text", "originalText": "Venue"},
-    {"name": "department", "label": "Department / Organised By", "type": "text", "originalText": "Department"},
-    {"name": "activity_incharge", "label": "Activity Incharge / Convener", "type": "text", "originalText": "Activity Incharge"},
-    {"name": "activity_coordinator", "label": "Activity Coordinator", "type": "text", "originalText": "Activity Coordinator"},
-    {"name": "resource_person", "label": "Resource Person / Guest Speaker", "type": "text", "originalText": "Resource Person"},
-    {"name": "nature_of_activity", "label": "Nature of Activity", "type": "text", "originalText": "Nature of Activity"},
-    {"name": "mode_of_activity", "label": "Mode of Activity", "type": "text", "originalText": "Mode of Activity"},
-    {"name": "participants", "label": "Target Audience / Number of Participants", "type": "text", "originalText": "Participants"},
-    {"name": "objectives", "label": "Objectives of the Activity", "type": "textarea", "originalText": "Objectives"},
-    {"name": "methodology", "label": "Methodology & Execution Process", "type": "textarea", "originalText": "Methodology"},
-    {"name": "outcomes", "label": "Outcomes & Key Takeaways", "type": "textarea", "originalText": "Outcomes"},
-    {"name": "activity_summary", "label": "Brief Event Description / Summary", "type": "textarea", "originalText": "Activity Summary"},
-    {"name": "strengths", "label": "Strengths & Highlights", "type": "textarea", "originalText": "Strengths"},
-    {"name": "weaknesses", "label": "Weaknesses & Scope for Improvement", "type": "textarea", "originalText": "Weaknesses"},
-    {"name": "feedback_summary", "label": "Feedback Analysis Summary", "type": "textarea", "originalText": "Feedback Summary"}
-]
-
 @router.get("/templates/fields")
 async def get_template_fields():
     try:
-        config_path = os.path.join(TEMPLATES_DIR, "fields_config.json")
-        if not os.path.exists(config_path):
-            config_path = os.path.join("templates", "fields_config.json")
-        if os.path.exists(config_path):
+        config_path = get_builtin_fields_config_path()
+        if config_path and os.path.exists(config_path):
             with open(config_path, "r") as f:
                 fields = json.load(f)
                 if fields:
@@ -686,19 +413,17 @@ async def get_template_fields():
     except Exception:
         return {"fields": DEFAULT_ACADEMIC_FIELDS}
 
-# Report Generation Endpoint with Notice Upload, Event Photos Grid Layout & Auto-Save
+# Report Generation Endpoint using Built-in Developer Template
 @router.post("/templates/generate")
 async def generate_document(
     values: Optional[str] = Form(None),
     notice_file: Optional[UploadFile] = File(None),
     event_photos: Optional[List[UploadFile]] = File(None),
     photo_assignments: Optional[str] = Form(None),
-    template_filename: Optional[str] = Form(None),
     body: Optional[GenerateDocumentRequest] = None
 ):
     parsed_values = {}
     parsed_photos = {}
-    tmpl_filename = None
 
     if values is not None:
         try:
@@ -708,7 +433,6 @@ async def generate_document(
     elif body is not None:
         parsed_values = body.values or {}
         parsed_photos = body.photo_assignments or {}
-        tmpl_filename = body.template_filename
 
     if photo_assignments and isinstance(photo_assignments, str):
         try:
@@ -716,9 +440,7 @@ async def generate_document(
         except Exception:
             pass
 
-    template_path = os.path.join("templates", tmpl_filename) if tmpl_filename and os.path.exists(os.path.join("templates", tmpl_filename)) else "templates/Template.docx"
-    if not os.path.exists(template_path):
-        template_path = "templates/Template.docx"
+    template_path = get_builtin_template_path()
 
     # Save notice/brochure file if provided
     notice_saved_path = None
@@ -742,7 +464,11 @@ async def generate_document(
                 saved_event_photo_paths.append(ep_save_path)
 
     try:
-        doc = docx.Document(template_path) if os.path.exists(template_path) else docx.Document()
+        try:
+            doc = docx.Document(template_path) if os.path.exists(template_path) else docx.Document()
+        except Exception as load_err:
+            print(f"Error opening template at {template_path}: {load_err}")
+            doc = docx.Document()
 
         # 1. Fill SJCEM AF-5 Structured Tables if applicable
         if len(doc.tables) >= 4:

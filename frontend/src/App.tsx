@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, FilePlus, Folder, FileText, Settings as SettingsIcon, LogOut, Users, Shield, Menu, X } from 'lucide-react';
+import { LayoutDashboard, FilePlus, Folder, Settings as SettingsIcon, LogOut, Users, Shield, Menu, X } from 'lucide-react';
 import Dashboard from './pages/Dashboard';
-import Templates from './pages/Templates';
 import NewReport from './pages/NewReport';
 import PreviousReports from './pages/PreviousReports';
 import Settings from './pages/Settings';
@@ -78,18 +77,6 @@ function SidebarNav({
             }`}
           >
             <Folder className="w-5 h-5 mr-3 text-indigo-400" /> Previous Reports
-          </Link>
-
-          <Link
-            to="/templates"
-            onClick={onNavClick}
-            className={`flex items-center px-4 py-3 rounded-xl transition font-medium text-sm ${
-              isActive('/templates')
-                ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-600/30'
-                : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-            }`}
-          >
-            <FileText className="w-5 h-5 mr-3 text-emerald-400" /> Templates
           </Link>
 
           <Link
@@ -197,7 +184,6 @@ function AppContent({
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/new-report" element={<NewReport />} />
           <Route path="/reports" element={<PreviousReports />} />
-          <Route path="/templates" element={<Templates />} />
           <Route path="/settings" element={<Settings theme={theme} onThemeChange={onThemeChange} />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>

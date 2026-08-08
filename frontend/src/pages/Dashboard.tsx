@@ -31,7 +31,6 @@ interface ReportRecord {
 export default function Dashboard() {
   const navigate = useNavigate();
   const [reports, setReports] = useState<ReportRecord[]>([]);
-  const [templatesCount, setTemplatesCount] = useState<number>(1);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -44,12 +43,6 @@ export default function Dashboard() {
       if (repRes.ok) {
         const data = await repRes.json();
         setReports(Array.isArray(data) ? data : []);
-      }
-
-      // Fetch templates count
-      const fieldsRes = await fetch(`${API_BASE_URL}/api/templates/fields`);
-      if (fieldsRes.ok) {
-        setTemplatesCount(1);
       }
     } catch (err) {
       console.error('Error fetching dashboard data:', err);
@@ -174,7 +167,7 @@ export default function Dashboard() {
         <div className="p-5 bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-              Active Templates
+              Master Template
             </span>
             <div className="p-2.5 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-xl">
               <FileText className="w-5 h-5" />
@@ -182,11 +175,11 @@ export default function Dashboard() {
           </div>
           <div className="mt-3 flex items-baseline space-x-2">
             <span className="text-3xl font-extrabold text-slate-900 dark:text-white">
-              {templatesCount} Standard
+              AF-5 Built-in
             </span>
           </div>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            TPO & Committee DOCX Master
+            Pre-bundled developer DOCX template
           </p>
         </div>
 
@@ -250,20 +243,20 @@ export default function Dashboard() {
           </div>
 
           <div
-            onClick={() => navigate('/templates')}
+            onClick={() => navigate('/new-report')}
             className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl cursor-pointer hover:border-emerald-400 dark:hover:border-emerald-500 hover:shadow-md transition duration-200 flex flex-col justify-between"
           >
             <div>
               <FileText className="w-7 h-7 mb-3 text-emerald-600 dark:text-emerald-400" />
               <h3 className="font-bold text-base text-slate-900 dark:text-white">
-                Template Studio
+                AF-5 Built-in Template
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                Upload or inspect master Word templates & placeholder tags.
+                Standard developer DOCX template is pre-configured & ready.
               </p>
             </div>
             <div className="mt-4 flex items-center text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-              Manage Templates <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              Create Report <ArrowRight className="w-3.5 h-3.5 ml-1" />
             </div>
           </div>
 

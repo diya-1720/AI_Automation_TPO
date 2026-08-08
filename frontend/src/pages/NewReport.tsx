@@ -23,8 +23,28 @@ const CHECKLIST_ITEMS = [
   { key: 'any_other_tick', label: 'Any Other Document' },
 ];
 
+const DEFAULT_FIELDS: Field[] = [
+  { name: "activity_name", label: "Name of the Activity", type: "text", originalText: "" },
+  { name: "date_time", label: "Date & Time", type: "text", originalText: "" },
+  { name: "venue", label: "Venue / Location", type: "text", originalText: "" },
+  { name: "department", label: "Department / Organised By", type: "text", originalText: "" },
+  { name: "activity_incharge", label: "Activity Incharge / Convener", type: "text", originalText: "" },
+  { name: "activity_coordinator", label: "Activity Coordinator", type: "text", originalText: "" },
+  { name: "resource_person", label: "Resource Person / Guest Speaker", type: "text", originalText: "" },
+  { name: "nature_of_activity", label: "Nature of Activity", type: "text", originalText: "" },
+  { name: "mode_of_activity", label: "Mode of Activity", type: "text", originalText: "" },
+  { name: "participants", label: "Target Audience / Number of Participants", type: "text", originalText: "" },
+  { name: "objectives", label: "Objectives of the Activity", type: "textarea", originalText: "" },
+  { name: "methodology", label: "Methodology & Execution Process", type: "textarea", originalText: "" },
+  { name: "outcomes", label: "Outcomes & Key Takeaways", type: "textarea", originalText: "" },
+  { name: "activity_summary", label: "Brief Event Description / Summary", type: "textarea", originalText: "" },
+  { name: "strengths", label: "Strengths & Highlights", type: "textarea", originalText: "" },
+  { name: "weaknesses", label: "Weaknesses & Scope for Improvement", type: "textarea", originalText: "" },
+  { name: "feedback_summary", label: "Feedback Analysis Summary", type: "textarea", originalText: "" }
+];
+
 export default function NewReport() {
-  const [fields, setFields] = useState<Field[]>([]);
+  const [fields, setFields] = useState<Field[]>(DEFAULT_FIELDS);
   const [values, setValues] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -53,8 +73,12 @@ export default function NewReport() {
   const fetchFieldsAndSettings = async () => {
     try {
       const response = await fetch(`${API_BASE_URL}/api/templates/fields`);
-      const data = await response.json();
-      setFields(data.fields || []);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.fields && data.fields.length > 0) {
+          setFields(data.fields);
+        }
+      }
 
       // Load settings for auto-fill defaults
       const settingsRes = await fetch(`${API_BASE_URL}/api/settings`);
@@ -70,7 +94,7 @@ export default function NewReport() {
         }));
       }
     } catch (err) {
-      setError('Failed to load template configuration. Have you saved a template yet?');
+      console.log('Using default template fields fallback');
     } finally {
       setIsLoading(false);
     }
@@ -207,17 +231,6 @@ export default function NewReport() {
 
   if (isLoading) {
     return <div className="p-8 flex items-center justify-center"><Loader2 className="animate-spin w-8 h-8 text-blue-600" /></div>;
-  }
-
-  if (fields.length === 0) {
-    return (
-      <div className="p-8 max-w-3xl mx-auto">
-        <div className="bg-yellow-50 text-yellow-800 p-6 rounded-xl border border-yellow-200 shadow-xs">
-          <h2 className="text-xl font-semibold mb-2">No Template Found</h2>
-          <p>Please go to the Templates page, upload a template, analyze it, and save the configuration first.</p>
-        </div>
-      </div>
-    );
   }
 
   // Filter out checklist items from normal dynamic text inputs
